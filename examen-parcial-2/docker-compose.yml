@@ -1,4 +1,6 @@
 services:
+
+  # ─── BASES DE DATOS ───────────────────────────────────────────────────────
   mysql-alumno:
     image: mysql:8.4
     container_name: mysql-alumno
@@ -71,6 +73,124 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+
+  # ─── INFRAESTRUCTURA ──────────────────────────────────────────────────────
+  ms-admin-config-server:
+    build: ./ms-admin-config-server
+    container_name: ms-admin-config-server
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    environment:
+      EUREKA_DEFAULT_ZONE: http://ms-admin-registry-server:8761/eureka
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8888/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+
+  ms-admin-registry-server:
+    build: ./ms-admin-registry-server
+    container_name: ms-admin-registry-server
+    restart: unless-stopped
+    ports:
+      - "8761:8761"
+    depends_on:
+      ms-admin-config-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8761/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+
+  ms-admin-api-gateway:
+    build: ./ms-admin-api-gateway
+    container_name: ms-admin-api-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      ms-admin-registry-server:
+        condition: service_healthy
+    environment:
+      CONFIG_SERVER_URL: http://ms-admin-config-server:8888
+      EUREKA_DEFAULT_ZONE: http://ms-admin-registry-server:8761/eureka
+
+  # ─── MICROSERVICIOS DE NEGOCIO ────────────────────────────────────────────
+  ms-gestion-instructor:
+    build: ./ms-gestion-instructor
+    container_name: ms-gestion-instructor
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    depends_on:
+      mysql-instructor:
+        condition: service_healthy
+      ms-admin-registry-server:
+        condition: service_healthy
+    environment:
+      CONFIG_SERVER_URL: http://ms-admin-config-server:8888
+      EUREKA_DEFAULT_ZONE: http://ms-admin-registry-server:8761/eureka
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-instructor:3306/instructor_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+
+  ms-gestion-alumno:
+    build: ./ms-gestion-alumno
+    container_name: ms-gestion-alumno
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    depends_on:
+      mysql-alumno:
+        condition: service_healthy
+      ms-admin-registry-server:
+        condition: service_healthy
+    environment:
+      CONFIG_SERVER_URL: http://ms-admin-config-server:8888
+      EUREKA_DEFAULT_ZONE: http://ms-admin-registry-server:8761/eureka
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-alumno:3306/alumno_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+
+  ms-gestion-taller:
+    build: ./ms-gestion-taller
+    container_name: ms-gestion-taller
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    depends_on:
+      mysql-taller:
+        condition: service_healthy
+      ms-admin-registry-server:
+        condition: service_healthy
+    environment:
+      CONFIG_SERVER_URL: http://ms-admin-config-server:8888
+      EUREKA_DEFAULT_ZONE: http://ms-admin-registry-server:8761/eureka
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-taller:3306/taller_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+      ms-admin-registry-server:
+        condition: service_healthy
+    environment:
+      CONFIG_SERVER_URL: http://ms-admin-config-server:8888
+      EUREKA_DEFAULT_ZONE: http://ms-admin-registry-server:8761/eureka
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-auth:5432/auth_db
+      SPRING_DATASOURCE_USERNAME: auth_user
+      SPRING_DATASOURCE_PASSWORD: auth_pass
 
 volumes:
   mysql_alumno_data:
