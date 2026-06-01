@@ -2,6 +2,7 @@ services:
   mysql-alumno:
     image: mysql:8.4
     container_name: mysql-alumno
+    restart: unless-stopped
     environment:
       MYSQL_DATABASE: alumno_db
       MYSQL_ROOT_PASSWORD: root
@@ -14,10 +15,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 20s
 
   mysql-instructor:
     image: mysql:8.4
     container_name: mysql-instructor
+    restart: unless-stopped
     environment:
       MYSQL_DATABASE: instructor_db
       MYSQL_ROOT_PASSWORD: root
@@ -30,10 +33,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 20s
 
   mysql-taller:
     image: mysql:8.4
     container_name: mysql-taller
+    restart: unless-stopped
     environment:
       MYSQL_DATABASE: taller_db
       MYSQL_ROOT_PASSWORD: root
@@ -46,10 +51,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 20s
 
   postgres-auth:
     image: postgres:16-alpine
     container_name: postgres-auth
+    restart: unless-stopped
     environment:
       POSTGRES_DB: auth_db
       POSTGRES_USER: auth_user
@@ -63,6 +70,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 20s
 
 volumes:
   mysql_alumno_data:
